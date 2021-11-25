@@ -41,14 +41,22 @@ class Selector:
                  score: Callable[[np.ndarray], int],
                  summary: Callable[[np.ndarray], Any] = None,
                  break_condition: Callable[[np.ndarray], bool] = None,
-                 target_count: int = 1) -> None:
+                 target_count: int = 1,
+                 mask_value = None) -> None:
         if len(headers) != data.shape[0]:
             raise ValueError(f'Header list length does not match data array '
                              f'size: {len(headers)} != {data.shape[0]}')
         self.headers = headers
         if len(data.shape) != 2 or data.shape[0] != data.shape[1]:
             raise ValueError(f'Data array needs to be square. Got: {data.shape}')
-        self.data = ma.masked_array(data)
+        if mask_value is not None:
+            print(f'Masking value: {mask_value}')
+            self.data = ma.masked_equal(data, mask_value)
+        else:
+            self.data = ma.masked_array(data)
+        # No values masked so intialize full mask.
+        if isinstance(self.data.mask, ma.MaskType):
+            self.data.mask = ma.make_mask_none(self.data.shape)
         self.score = score
         self.summary = summary
         self.break_condition = break_condition
@@ -63,8 +71,6 @@ class Selector:
         """Mask the `k`-th row and column of array `m` in place.
         """
         start = time.time_ns()
-        if m.mask.size == 1:
-            m.mask = ma.make_mask_none(m.shape)
         m.mask[:,k] = True
         m.mask[k,:] = True
         print(f'mask_entry: {(time.time_ns() - start) / 1000000:.2f} ms',

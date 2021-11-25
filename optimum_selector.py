@@ -1,6 +1,5 @@
 import argparse
 import gzip
-import os
 import sys
 from typing import Any, List, Tuple
 
@@ -23,15 +22,6 @@ def min_mean_col(m: np.ndarray) -> int:
     """Calculate the index of the column with the smallest mean.
     """
     col_mean = np.mean(m, axis=0)
-    return np.argmin(col_mean)
-
-
-def min_mean_col_ignore_zero(m: np.ndarray) -> int:
-    """Calculate the index of the column with the smallest mean,
-    ignoring zero values.
-    """
-    local_m = ma.masked_equal(m, 0)
-    col_mean = np.mean(local_m, axis=0)
     return np.argmin(col_mean)
 
 
@@ -96,7 +86,9 @@ def min_inverse_rank_col_pref_small(m: ma.MaskedArray) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('input_file')
-    parser.add_argument('output_path')
+    parser.add_argument('output_file')
+    parser.add_argument('-m', '--mask-value', type=float,
+                        help='mask (ignore) value in input_file')
     args = parser.parse_args()
 
     input_file = args.input_file
@@ -104,17 +96,14 @@ def main() -> None:
         print(f'Error: Expected {DATA_SUFFIX} file.', file=sys.stderr)
         sys.exit(1)
 
-    output_path = args.output_path
-    if not output_path.endswith('/'):
-        output_path += '/'
-    output_file = output_path + \
-        os.path.basename(input_file)[:-len(DATA_SUFFIX)] + '.out' + DATA_SUFFIX
+    output_file = args.output_file
 
     headers, data = read_input(input_file)
     selector = Selector(headers,
                         data,
                         score=min_inverse_rank_col_pref_small,
-                        summary=np.mean)
+                        summary=np.mean,
+                        mask_value=args.mask_value)
     selector.process()
     with gzip.open(output_file, 'wt') as o:
         for line in selector.steps:
