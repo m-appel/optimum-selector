@@ -103,6 +103,9 @@ class Selector:
         while data_len > self.target_count:
             all_start = time.time_ns()
             rem_idx = self.score(self.data)
+            if rem_idx < 0:
+                print(f'No valid values left. Aborting early.')
+                break
             start = self.measure('score', all_start)
 
             self.mask_rowcol(self.data, rem_idx)

@@ -1,6 +1,7 @@
 import argparse
 import gzip
 import sys
+from collections import Counter
 from typing import Any, List, Tuple
 
 import numpy as np
@@ -10,6 +11,8 @@ from Selector import Selector
 
 DATA_SUFFIX = '.csv.gz'
 DATA_DELIMITER = ','
+
+counters = list()
 
 def read_input(input_file: str) -> Tuple[List[Any], np.ndarray]:
     with gzip.open(input_file, 'rt') as f:
@@ -83,6 +86,62 @@ def min_inverse_rank_col_pref_small(m: ma.MaskedArray) -> int:
     return min_col
 
 
+def max_weighted_dist(m: np.ndarray) -> int:
+    """Calculate the index of the column with the largest
+    weighted-distribution score.
+
+    Notes
+    -----
+    The weighted distribution makes most sense for discrete
+    distributions.
+    For each column, let `n` be the total number of values and `o`
+    the number of occurrences of value `x`. The score of value `x`
+    is calculated as:
+        `1 / x * o / n`
+    The scores for all unique values in the column are calculated and
+    summed up to form the overall score of the column. The column
+    with the largest score is selected for removal.
+
+    The final score is in the interval (0,1] and close to 1 if the
+    column contains many small values.
+    """
+    global counters
+    if not counters:
+        print('Initializing counters')
+        for col in range(m.shape[1]):
+            total_value_count = ma.count(m[:, col])
+            if total_value_count == 0:
+                counters.append(Counter())
+                continue
+            values, counts = np.unique(m[:, col], return_counts=True)
+            counters.append(Counter({value: count
+                                     for value, count in zip(values, counts)
+                                     if value is not ma.masked}))
+
+    column_scores = list()
+    valid_column_found = False
+    for counter in counters:
+        total_value_count = sum(counter.values())
+        if total_value_count == 0:
+            column_scores.append(np.nan)
+            continue
+        valid_column_found = True
+        column_scores.append(np.sum([1 / value * count / total_value_count
+                             for value, count in counter.items()]))
+    if not valid_column_found:
+        return -1
+    rem_idx = np.nanargmax(column_scores)
+
+    # Decrement counters of other columns.
+    for counter_idx, removed_value in enumerate(m[rem_idx, :]):
+        if removed_value is ma.masked:
+            continue
+        counters[counter_idx][removed_value] -= 1
+    # Clear counter for removed column.
+    counters[rem_idx] = Counter()
+    return rem_idx
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('input_file')
@@ -101,7 +160,7 @@ def main() -> None:
     headers, data = read_input(input_file)
     selector = Selector(headers,
                         data,
-                        score=min_inverse_rank_col_pref_small,
+                        score=max_weighted_dist,
                         summary=np.mean,
                         mask_value=args.mask_value)
     selector.process()
