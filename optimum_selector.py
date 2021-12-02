@@ -75,6 +75,9 @@ def min_inverse_rank_col_pref_small(m: ma.MaskedArray) -> int:
     sdata = np.sort(m, axis=0)
     # Get the number of non-masked rows.
     rows = np.max(ma.count(m, axis=0))
+    # No unmasked values left.
+    if rows == 0:
+        return -1
     # Calculate weights in descending order: 1/1, ..., 1/m
     weights = 1 / np.arange(1, rows + 1)
     # Add zeros for masked rows to fit size.
