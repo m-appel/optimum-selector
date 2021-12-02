@@ -44,15 +44,22 @@ def min_inverse_rank_col_pref_large(m: ma.MaskedArray) -> int:
     # Sort by ascending column value, putting masked values at the
     # end.
     sdata = np.sort(m, axis=0)
-    # Get the number of non-masked rows.
-    rows = np.max(ma.count(m, axis=0))
-    # Calculate weights in ascending order: 1/m, ..., 1/1
-    weights = 1 / np.arange(rows, 0, -1)
-    # Add zeros for masked rows to fit size.
-    weights.resize(sdata.shape[1])
-    # Apply weights columnwise.
-    # [:,None] required to project 1-D array to column.
-    sdata *= weights[:,None]
+    # Get the number of non-masked rows per column.
+    rows = ma.count(m, axis=0)
+    # No unmasked values left.
+    if all([row_count == 0 for row_count in rows]):
+        return -1
+    # If some value is masked, each column can contain a different number of
+    # masked values. Since we want to apply the factor 1 to the last
+    # non-masked value, we need to know its position. Therefore, we need to
+    # compute the weights per column.
+    for col, row_count in enumerate(rows):
+        # Calculate weights in ascending order: 1/m, ..., 1/1
+        weights = 1 / np.arange(row_count, 0, -1)
+        # Add zeros for masked rows to fit size.
+        weights.resize(sdata.shape[1])
+        # Apply weights columnwise.
+        sdata[:, col] *= weights
     min_col = np.argmin(np.sum(sdata, axis=0))
     return min_col
 
@@ -163,7 +170,7 @@ def main() -> None:
     headers, data = read_input(input_file)
     selector = Selector(headers,
                         data,
-                        score=max_weighted_dist,
+                        score=min_inverse_rank_col_pref_large,
                         summary=np.mean,
                         mask_value=args.mask_value)
     selector.process()
