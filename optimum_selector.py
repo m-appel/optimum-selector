@@ -9,6 +9,7 @@ import numpy.ma as ma
 
 from Selector import Selector
 
+
 DATA_SUFFIX = '.csv.gz'
 DATA_DELIMITER = ','
 
@@ -28,18 +29,24 @@ def min_mean_col(m: np.ndarray) -> int:
     return np.argmin(col_mean)
 
 
-def min_inverse_rank_col_pref_large(m: ma.MaskedArray) -> int:
-    """Calculate the index of the column with the smallest of column
-    values weighted with their respective inverse rank, giving the
-    largest value the highest rank.
+def max_mean_col(m: np.ndarray) -> int:
+    """Calculate the index of the column with the largest mean.
+    """
+    col_mean = np.mean(m, axis=0)
+    return np.argmax(col_mean)
+
+
+def inverse_rank_col_pref_large(m: ma.MaskedArray) -> np.ndarray:
+    """Calculate the sum of column values weighted with their
+    respective inverse rank, giving the largest value the highest
+    rank.
 
     Notes
     -----
     First, order the column values in ascending order. Then assign
     weights in order 1/m, ..., 1/2, 1/1 (for an m x n matrix) to
     the column values. The largest value gets the largest weight.
-    Calculate the sum of these weighted values and return the index
-    of the column with the smallest sum.
+    Return the sum of these weighted values.
     """
     # Sort by ascending column value, putting masked values at the
     # end.
@@ -60,22 +67,36 @@ def min_inverse_rank_col_pref_large(m: ma.MaskedArray) -> int:
         weights.resize(sdata.shape[1])
         # Apply weights columnwise.
         sdata[:, col] *= weights
-    min_col = np.argmin(np.sum(sdata, axis=0))
-    return min_col
+    return np.sum(sdata, axis=0)
 
 
-def min_inverse_rank_col_pref_small(m: ma.MaskedArray) -> int:
-    """Calculate the index of the column with the smallest of column
+def min_inverse_rank_col_pref_large(m: ma.MaskedArray) -> int:
+    """Calculate the index of the column with the smallest sum of
     values weighted with their respective inverse rank, giving the
-    smallest value the highest rank.
+    largest value the highest rank.
+    """
+    return np.argmin(inverse_rank_col_pref_large(m))
+
+
+def max_inverse_rank_col_pref_large(m: ma.MaskedArray) -> int:
+    """Calculate the index of the column with the largest sum of
+    values weighted with their respective inverse rank, giving the
+    largest value the highest rank.
+    """
+    return np.argmax(inverse_rank_col_pref_large(m))
+
+
+def inverse_rank_col_pref_small(m: ma.MaskedArray) -> np.ndarray:
+    """Calculate the sum of column values weighted with their
+    respective inverse rank, giving the smallest value the highest
+    rank.
 
     Notes
     -----
     First, order the column values in ascending order. Then assign
     weights in order 1/1, 1/2, ..., 1/m (for an m x n matrix) to
     the column values. The smallest value gets the largest weight.
-    Calculate the sum of these weighted values and return the index
-    of the column with the smallest sum.
+    Return the sum of these weighted values.
     """
     # Sort by ascending column value, putting masked values at the
     # end.
@@ -92,8 +113,23 @@ def min_inverse_rank_col_pref_small(m: ma.MaskedArray) -> int:
     # Apply weights columnwise.
     # [:,None] required to project 1-D array to column.
     sdata *= weights[:,None]
-    min_col = np.argmin(np.sum(sdata, axis=0))
-    return min_col
+    return np.sum(sdata, axis=0)
+
+
+def min_inverse_rank_col_pref_small(m: ma.MaskedArray) -> int:
+    """Calculate the index of the column with the smallest sum of
+    values weighted with their respective inverse rank, giving the
+    smallest value the highest rank.
+    """
+    return np.argmin(inverse_rank_col_pref_small(m))
+
+
+def max_inverse_rank_col_pref_small(m: ma.MaskedArray) -> int:
+    """Calculate the index of the column with the largest sum of
+    values weighted with their respective inverse rank, giving the
+    smallest value the highest rank.
+    """
+    return np.argmax(inverse_rank_col_pref_small(m))
 
 
 def max_weighted_dist(m: np.ndarray) -> int:
