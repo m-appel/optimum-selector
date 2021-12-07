@@ -15,10 +15,12 @@ DATA_DELIMITER = ','
 
 counters = list()
 
-def read_input(input_file: str) -> Tuple[List[Any], np.ndarray]:
+def read_input(input_file: str, dtype = None) -> Tuple[List[Any], np.ndarray]:
     with gzip.open(input_file, 'rt') as f:
         headers = f.readline().lstrip('#').strip().split(',')
     data = np.loadtxt(input_file, delimiter=DATA_DELIMITER)
+    if dtype:
+        return headers, np.asarray(data, dtype=dtype)
     return headers, data
 
 
@@ -194,6 +196,8 @@ def main() -> None:
     parser.add_argument('output_file')
     parser.add_argument('-m', '--mask-value', type=float,
                         help='mask (ignore) value in input_file')
+    parser.add_argument('-d', '--data-type',
+                        help='specify data type of matrix (default: float)')
     args = parser.parse_args()
 
     input_file = args.input_file
@@ -201,12 +205,20 @@ def main() -> None:
         print(f'Error: Expected {DATA_SUFFIX} file.', file=sys.stderr)
         sys.exit(1)
 
+    if not args.data_type or args.data_type == 'float':
+        data_type = None
+    elif args.data_type == 'int':
+        data_type = int
+    else:
+        print(f'Invalid data type specified: {args.data_type}', file=sys.stderr)
+        sys.exit(1)
+
     output_file = args.output_file
 
-    headers, data = read_input(input_file)
+    headers, data = read_input(input_file, dtype=data_type)
     selector = Selector(headers,
                         data,
-                        score=min_inverse_rank_col_pref_large,
+                        score=max_weighted_dist,
                         summary=np.mean,
                         mask_value=args.mask_value)
     selector.process()

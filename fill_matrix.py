@@ -9,14 +9,16 @@ import numpy as np
 DATA_DELIMITER = ','
 
 
-def load_data(input_file: str) -> Tuple[str, np.ndarray]:
+def load_data(input_file: str, dtype=None) -> Tuple[str, np.ndarray]:
     if input_file.endswith('.gz'):
         with gzip.open(input_file, 'rt') as f:
             headers = f.readline().strip('# \n')
     else:
         with open(input_file, 'r') as f:
             headers = f.readline().strip('# \n')
-    data = np.loadtxt(input_file, delimiter=DATA_DELIMITER, dtype=int)
+    data = np.loadtxt(input_file, delimiter=DATA_DELIMITER)
+    if dtype:
+        data = np.asarray(data, dtype=dtype)
     print(f'Loaded {data.shape[0]} x {data.shape[1]} matrix with {data.size} '
           f'cells.')
     filled_cells = np.count_nonzero(data)
@@ -68,10 +70,22 @@ def main() -> None:
                         action='store_true',
                         help='force symmetry by mirroring the smaller value '
                              'from the upper/lower triangle')
+    parser.add_argument('-d', '--data-type',
+                        help='specify data type of matrix (default: float)')
     args = parser.parse_args()
     symmetric = args.symmetric
 
-    headers, data = load_data(args.input_file)
+    if not args.data_type or args.data_type == 'float':
+        data_type = None
+        data_fmt = '%.18e'  # numpy.savetxt default format
+    elif args.data_type == 'int':
+        data_type = int
+        data_fmt = '%d'
+    else:
+        print(f'Invalid data type specified: {args.data_type}', file=sys.stderr)
+        sys.exit(1)
+
+    headers, data = load_data(args.input_file, dtype=data_type)
     fill_matrix(data, symmetric)
 
     if symmetric:
@@ -83,7 +97,7 @@ def main() -> None:
                data,
                delimiter=DATA_DELIMITER,
                header=headers,
-               fmt='%d')
+               fmt=data_fmt)
 
 
 if __name__ == '__main__':

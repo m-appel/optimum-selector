@@ -10,14 +10,16 @@ import numpy as np
 DATA_DELIMITER = ','
 
 
-def load_data(input_file: str) -> Tuple[list, np.ndarray]:
+def load_data(input_file: str, dtype=None) -> Tuple[list, np.ndarray]:
     if input_file.endswith('.gz'):
         with gzip.open(input_file, 'rt') as f:
             headers = f.readline().strip('# \n').split(DATA_DELIMITER)
     else:
         with open(input_file, 'r') as f:
             headers = f.readline().strip('# \n').split(DATA_DELIMITER)
-    data = np.loadtxt(input_file, delimiter=DATA_DELIMITER, dtype=int)
+    data = np.loadtxt(input_file, delimiter=DATA_DELIMITER)
+    if dtype:
+        data = np.asarray(data, dtype=dtype)
     print(f'Loaded {data.shape[0]} x {data.shape[1]} matrix with {data.size} '
           f'cells.')
     filled_cells = np.count_nonzero(data)
@@ -61,16 +63,28 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('input_file')
     parser.add_argument('output_file')
+    parser.add_argument('-d', '--data-type',
+                        help='specify data type of matrix (default: float)')
     args = parser.parse_args()
 
-    headers, data = load_data(args.input_file)
+    if not args.data_type or args.data_type == 'float':
+        data_type = None
+        data_fmt = '%.18e'  # numpy.savetxt default format
+    elif args.data_type == 'int':
+        data_type = int
+        data_fmt = '%d'
+    else:
+        print(f'Invalid data type specified: {args.data_type}', file=sys.stderr)
+        sys.exit(1)
+
+    headers, data = load_data(args.input_file, dtype=data_type)
     headers, data = compress_matrix(headers, data)
 
     np.savetxt(args.output_file,
                data,
                delimiter=DATA_DELIMITER,
                header=DATA_DELIMITER.join(headers),
-               fmt='%d')
+               fmt=data_fmt)
 
 
 if __name__ == '__main__':
