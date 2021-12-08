@@ -14,6 +14,7 @@ DATA_SUFFIX = '.csv.gz'
 DATA_DELIMITER = ','
 
 counters = list()
+squared_matrix = None
 
 def read_input(input_file: str, dtype = None) -> Tuple[List[Any], np.ndarray]:
     with gzip.open(input_file, 'rt') as f:
@@ -190,6 +191,26 @@ def max_weighted_dist(m: np.ndarray) -> int:
     return rem_idx
 
 
+def max_square_sum(m: np.ndarray) -> int:
+    """Calcuate the index of the column with the largest sum of
+    squared values.
+
+    Notes
+    -----
+    Should be used for values in interval [0,1]. Squaring these
+    values implicitly gives a larger weight to values closer to 1.
+    """
+    global squared_matrix
+    if squared_matrix is None:
+        print('Squaring matrix.')
+        squared_matrix = ma.masked_array(m ** 2)
+        squared_matrix.mask = ma.make_mask_none(m.shape)
+    rem_idx = np.argmax(np.nansum(squared_matrix, axis=0))
+    squared_matrix.mask[rem_idx, :] = True
+    squared_matrix.mask[:, rem_idx] = True
+    return rem_idx
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('input_file')
@@ -218,8 +239,8 @@ def main() -> None:
     headers, data = read_input(input_file, dtype=data_type)
     selector = Selector(headers,
                         data,
-                        score=max_weighted_dist,
-                        summary=np.mean,
+                        score=max_square_sum,
+                        summary=np.nanmean,
                         mask_value=args.mask_value)
     selector.process()
     with gzip.open(output_file, 'wt') as o:
