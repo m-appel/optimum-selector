@@ -2,7 +2,7 @@ import argparse
 import gzip
 import sys
 from collections import Counter
-from typing import Any, List, Tuple
+from typing import Any, Callable, List, Tuple
 
 import numpy as np
 import numpy.ma as ma
@@ -215,10 +215,29 @@ def max_square_sum(m: np.ndarray) -> int:
     return rem_idx
 
 
+def get_score_function(function: str) -> Callable:
+    score_functions = \
+      {'min_mean_col': min_mean_col,
+       'max_mean_col': max_mean_col,
+       'min_inverse_rank_col_pref_large': min_inverse_rank_col_pref_large,
+       'max_inverse_rank_col_pref_large': max_inverse_rank_col_pref_large,
+       'min_inverse_rank_col_pref_small': min_inverse_rank_col_pref_small,
+       'max_inverse_rank_col_pref_small': max_inverse_rank_col_pref_small,
+       'max_weighted_dist': max_weighted_dist,
+       'max_square_sum': max_square_sum}
+
+    if function not in score_functions:
+        print(f'Error: Undefined score function: :{function}', file=sys.stderr)
+        return None
+
+    return score_functions[function]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('input_file')
     parser.add_argument('output_file')
+    parser.add_argument('score_function')
     parser.add_argument('-m', '--mask-value', type=float,
                         help='mask (ignore) value in input_file')
     parser.add_argument('-d', '--data-type',
@@ -238,12 +257,16 @@ def main() -> None:
         print(f'Invalid data type specified: {args.data_type}', file=sys.stderr)
         sys.exit(1)
 
+    score = get_score_function(args.score_function)
+    if score is None:
+        sys.exit(1)
+
     output_file = args.output_file
 
     headers, data = read_input(input_file, dtype=data_type)
     selector = Selector(headers,
                         data,
-                        score=max_square_sum,
+                        score=score,
                         summary=np.nanmean,
                         mask_value=args.mask_value)
     selector.process()
