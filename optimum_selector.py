@@ -25,16 +25,20 @@ def read_input(input_file: str, dtype = None) -> Tuple[List[Any], np.ndarray]:
     return headers, data
 
 
-def min_mean_col(m: np.ndarray) -> int:
+def min_mean_col(m: ma.MaskedArray) -> int:
     """Calculate the index of the column with the smallest mean.
     """
+    if ma.count_masked(m) == m.size:
+        return -1
     col_mean = np.mean(m, axis=0)
     return np.argmin(col_mean)
 
 
-def max_mean_col(m: np.ndarray) -> int:
+def max_mean_col(m: ma.MaskedArray) -> int:
     """Calculate the index of the column with the largest mean.
     """
+    if ma.count_masked(m) == m.size:
+        return -1
     col_mean = np.mean(m, axis=0)
     return np.argmax(col_mean)
 
