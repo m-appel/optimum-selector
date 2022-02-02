@@ -30,7 +30,7 @@ def min_mean_col(m: ma.MaskedArray) -> int:
     """
     if ma.count_masked(m) == m.size:
         return -1
-    col_mean = np.mean(m, axis=0)
+    col_mean = np.nanmean(m, axis=0)
     return np.argmin(col_mean)
 
 
@@ -39,7 +39,7 @@ def max_mean_col(m: ma.MaskedArray) -> int:
     """
     if ma.count_masked(m) == m.size:
         return -1
-    col_mean = np.mean(m, axis=0)
+    col_mean = np.nanmean(m, axis=0)
     return np.argmax(col_mean)
 
 

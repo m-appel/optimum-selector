@@ -89,7 +89,7 @@ def main() -> None:
     fill_matrix(data, symmetric)
 
     if symmetric:
-        if not np.allclose(data, data.T):
+        if not np.allclose(data, data.T, equal_nan=True):
             print(f'Error: Output matrix is not symmetric!', file=sys.stderr)
             sys.exit(1)
 
