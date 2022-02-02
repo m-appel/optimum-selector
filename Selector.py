@@ -99,13 +99,27 @@ class Selector:
         the condition is fulfilled.
         """
         data_len = len(self.headers)
+        remaining_idx = set(range(data_len))
 
         while data_len > self.target_count:
             all_start = time.time_ns()
             rem_idx = self.score(self.data)
             if rem_idx < 0:
                 print(f'No valid values left. Aborting early.')
+                rem_headers = [self.headers[i] for i in sorted(remaining_idx)]
+                print(f'Remaining headers: {rem_headers}')
+                summary_value = None
+                if self.summary:
+                    summary_value = self.summary(self.data)
+                for idx in sorted(remaining_idx):
+                    self.steps.append((summary_value, self.headers[idx], idx))
                 break
+
+            try:
+                remaining_idx.remove(rem_idx)
+            except KeyError:
+                print(f'Tried to remove already removed index: {rem_idx}')
+
             start = self.measure('score', all_start)
 
             self.mask_rowcol(self.data, rem_idx)
