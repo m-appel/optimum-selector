@@ -1,4 +1,5 @@
 import argparse
+import gzip
 import logging
 import json
 import sys
@@ -87,12 +88,19 @@ def get_probe_per_as(asns: list,
 
 def get_asns(steps_file: str) -> list:
     logging.info(f'Loading ASes from file: {steps_file}')
-    asns = np.loadtxt(steps_file,
-                      dtype=int,
-                      delimiter=DELIMITER,
-                      skiprows=1,
-                      usecols=1)
-    return list(asns)
+    ret = list()
+    with gzip.open(steps_file, 'rt') as f:
+        f.readline()
+        for line in f:
+            line_split = line.split(DELIMITER)
+            if len(line_split) != 3:
+                logging.error(f'Steps file has invalid line format: '
+                              f'{line.strip()}')
+                return list()
+            if line_split[0] == '--':
+                continue
+            ret.append(int(line_split[1]))
+    return ret
 
 
 def main() -> None:
@@ -114,6 +122,8 @@ def main() -> None:
         datefmt='%Y-%m-%d %H:%M:%S')
 
     asns = get_asns(args.steps_file)
+    if not asns:
+        sys.exit(1)
 
     as_count = args.as_count
 
