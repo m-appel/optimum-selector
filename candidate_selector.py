@@ -11,7 +11,7 @@ OUTPUT_DELIMITER = ','
 
 
 def read_input(input_file: str) -> dict:
-    print(f'Reading date from: {input_file}')
+    print(f'Reading data from: {input_file}')
     with bz2.open(input_file, 'r') as f:
         ret = pickle.load(f)
     if not isinstance(ret, dict):
@@ -24,6 +24,12 @@ def read_input(input_file: str) -> dict:
     if type(ret[l1_key][l2_key]) != int:
         print(f'Casting data to int')
         ret = {l1: {l2: int(np.ceil(ret[l1][l2]))
+                    for l2 in ret[l1]}
+               for l1 in ret}
+    if 'as_hops' in input_file:
+        print('AS hops detected, increasing by 1 hop to produce AS-path '
+              'length')
+        ret = {l1: {l2: int(ret[l1][l2] + 1)
                     for l2 in ret[l1]}
                for l1 in ret}
     return ret
