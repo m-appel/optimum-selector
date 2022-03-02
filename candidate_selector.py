@@ -35,6 +35,18 @@ def read_input(input_file: str) -> dict:
     return ret
 
 
+def read_as_prefixes(input_file: str) -> dict:
+    print(f'Reading AS prefix counts from: {input_file}')
+    ret = dict()
+    with open(input_file, 'r') as f:
+        f.readline()
+        for line in f:
+            asn, prefix_count = line.strip().split(',')
+            ret[int(asn)] = int(prefix_count)
+    print(f'Read {len(ret)} prefix counts')
+    return ret
+
+
 def read_as_names(input_file: str) -> dict:
     print(f'Reading AS names from: {input_file}')
     ret = dict()
@@ -73,8 +85,8 @@ def main() -> None:
                         help='.pickle.bz2 file containing distance vectors')
     parser.add_argument('output_file',
                         help='CSV file to which results are written')
-    parser.add_argument('score_function',
-                        help='scoring function used to rank candidates')
+    parser.add_argument('as_prefix_file',
+                        help='CSV file containing the AS to prefix count')
     parser.add_argument('--min-samples', type=int, default=0,
                         help='minimum number of samples required to include '
                              'an AS as a candidate (default: 0 -> include all '
@@ -89,6 +101,9 @@ def main() -> None:
     if as_names_file:
         as_names = read_as_names(as_names_file)
 
+    as_prefix_file = args.as_prefix_file
+    as_prefix_counts = read_as_prefixes(as_prefix_file)
+
     input_file = args.input_file
     data = read_input(input_file)
     min_samples = args.min_samples
@@ -100,6 +115,9 @@ def main() -> None:
     print('10 BEST CANDIDATES')
     for asn, score in scores[:10]:
         samples = list(data[asn].values())
+        prefix_count = None
+        if asn in as_prefix_counts:
+            prefix_count = as_prefix_counts[asn]
         sample_count = len(samples)
         min_sample = min(samples)
         avg_sample = np.mean(samples)
@@ -107,6 +125,7 @@ def main() -> None:
         max_sample = max(samples)
         print(f'AS{asn}')
         print(f'Score: {score}')
+        print(f'Prefixes: {prefix_count}')
         print(f'Samples: {sample_count} ({min_sample} / {avg_sample:.2f} / '
               f'{median_sample} / {max_sample})')
         print(f'Name: ', end='')
@@ -117,6 +136,9 @@ def main() -> None:
     print('10 WORST CANDIDATES')
     for asn, score in scores[-10:]:
         samples = list(data[asn].values())
+        prefix_count = None
+        if asn in as_prefix_counts:
+            prefix_count = as_prefix_counts[asn]
         sample_count = len(samples)
         min_sample = min(samples)
         avg_sample = np.mean(samples)
@@ -124,6 +146,7 @@ def main() -> None:
         max_sample = max(samples)
         print(f'AS{asn}')
         print(f'Score: {score}')
+        print(f'Prefixes: {prefix_count}')
         print(f'Samples: {sample_count} ({min_sample} / {avg_sample:.2f} / '
               f'{median_sample} / {max_sample})')
         print(f'Name: ', end='')
@@ -134,19 +157,25 @@ def main() -> None:
     output_file = args.output_file
     print(f'Writing {len(scores)} candidates to file: {output_file}')
     with open(output_file, 'w') as f:
-        headers = ('asn', 'score', 'sample_count', 'min_sample', 'avg_sample',
-                   'median_sample', 'max_sample')
+        headers = ('asn', 'score', 'prefix_count', 'sample_count',
+                   'min_sample', 'avg_sample', 'median_sample', 'max_sample')
         f.write(OUTPUT_DELIMITER.join(headers) + '\n')
         for asn, score in scores:
             samples = list(data[asn].values())
+            prefix_count = 0
+            if asn in as_prefix_counts:
+                prefix_count = as_prefix_counts[asn]
+            else:
+                print(f'Warning: Found no prefix count for AS{asn}')
             sample_count = len(samples)
             min_sample = min(samples)
             avg_sample = np.mean(samples)
             median_sample = np.median(samples)
             max_sample = max(samples)
-            f.write(OUTPUT_DELIMITER.join(map(str, (asn, score, sample_count,
-                                                    min_sample, avg_sample,
-                                                    median_sample, max_sample)
+            f.write(OUTPUT_DELIMITER.join(map(str, (asn, score, prefix_count,
+                                                    sample_count, min_sample,
+                                                    avg_sample, median_sample,
+                                                    max_sample)
                                              )
                                          ) + '\n')
 
