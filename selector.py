@@ -1,4 +1,4 @@
-import time
+import logging
 from typing import Any, Callable, List
 
 import numpy as np
@@ -50,7 +50,7 @@ class Selector:
         if len(data.shape) != 2 or data.shape[0] != data.shape[1]:
             raise ValueError(f'Data array needs to be square. Got: {data.shape}')
         if mask_value is not None:
-            print(f'Masking value: {mask_value}')
+            logging.info(f'Masking value: {mask_value}')
             self.data = ma.masked_equal(data, mask_value)
         else:
             self.data = ma.masked_array(data)
@@ -70,20 +70,9 @@ class Selector:
     def mask_rowcol(m: ma.MaskedArray, k: int = 0) -> None:
         """Mask the `k`-th row and column of array `m` in place.
         """
-        start = time.time_ns()
         m.mask[:,k] = True
         m.mask[k,:] = True
-        print(f'mask_entry: {(time.time_ns() - start) / 1000000:.2f} ms',
-              end=' ')
 
-    @staticmethod
-    def measure(pref: str, start: int) -> int:
-        """Print elapsed time in milliseconds since `start`,
-        prefixed with `pref`, and return the current time.
-        """
-        end = time.time_ns()
-        print(f'{pref}: {(end - start) / 1000000:.2f} ms', end=' ')
-        return end
 
     def process(self) -> None:
         """Process the input matrix by removing row-column pairs
@@ -102,15 +91,17 @@ class Selector:
         remaining_idx = set(range(data_len))
 
         while data_len > self.target_count:
-            all_start = time.time_ns()
             rem_idx = self.score(self.data)
             if rem_idx < 0:
-                print(f'No valid values left. Aborting early.')
+                logging.info(f'No valid values left. Aborting early.')
                 rem_headers = [self.headers[i] for i in sorted(remaining_idx)]
-                print(f'Remaining headers: {rem_headers}')
+                logging.info(f'Remaining headers: {rem_headers}')
                 summary_value = None
                 if self.summary:
-                    summary_value = self.summary(self.data)
+                    if self.data.count() > 0:
+                        summary_value = self.summary(self.data)
+                    else:
+                        summary_value = ma.masked
                 for idx in sorted(remaining_idx):
                     self.steps.append((summary_value, self.headers[idx], idx))
                 break
@@ -118,23 +109,21 @@ class Selector:
             try:
                 remaining_idx.remove(rem_idx)
             except KeyError:
-                print(f'Tried to remove already removed index: {rem_idx}')
+                logging.error(f'Tried to remove already removed index: {rem_idx}')
 
-            start = self.measure('score', all_start)
 
             self.mask_rowcol(self.data, rem_idx)
-            start = self.measure('mask_rowcols', start)
             data_len -= 1
 
             summary_value = None
             if self.summary:
-                summary_value = self.summary(self.data)
-            start = self.measure('summary', start)
+                if self.data.count() > 0:
+                    summary_value = self.summary(self.data)
+                else:
+                    summary_value = ma.masked
             self.steps.append((summary_value, self.headers[rem_idx], rem_idx))
 
             if self.break_condition and self.break_condition(self.data):
                 break
 
-            end = time.time_ns()
-            print(f'total: {(end - all_start) / 1000000:.2f} ms')
-            print(self.steps[-1])
+            logging.debug(self.steps[-1])
